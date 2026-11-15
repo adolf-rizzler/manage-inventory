@@ -63,19 +63,24 @@ const table = (cols, rows, empty) => rows.length
   ? `<div class="tbl"><table><thead><tr>${cols.map(c => `<th>${c[0]}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr ${r.go ? `data-go="${r.go}" class="click"` : ''}>${cols.map(c => `<td>${c[1](r)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`
   : `<p class="empty">${empty}</p>`;
 
-function form(heading, fields, save, vals = {}) {
+function form(heading, fields, save, vals = {}, del) {
   const m = document.createElement('div'); m.className = 'modal';
   m.innerHTML = `<form class="modal-box"><h3>${heading}</h3>${fields.map(f => `<label>${f.l}${f.t === 'select'
     ? `<select name="${f.n}">${f.o.map(o => `<option value="${o[0]}" ${vals[f.n] === o[0] ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`
     : `<input name="${f.n}" type="${f.t || 'text'}" ${f.r ? 'required' : ''} ${f.t === 'number' ? 'min="0" step="any"' : ''} value="${esc(vals[f.n] ?? '')}">`}</label>`).join('')}
-    <div class="modal-actions"><button type="button" class="btn ghost">Cancel</button><button class="btn">Save</button></div></form>`;
+    <div class="modal-actions">${del ? '<button type="button" class="btn danger">Delete</button>' : ''}<button type="button" class="btn ghost">Cancel</button><button class="btn">Save</button></div></form>`;
   document.body.appendChild(m);
   m.querySelector('.ghost').onclick = () => m.remove();
+  const delBtn = m.querySelector('.danger');
+  if (delBtn) delBtn.onclick = async () => {
+    if (!confirm(`Delete this ${heading.replace(/^Edit /, '')}? This cannot be undone.`)) return;
+    try { await del(); m.remove(); toast('Deleted'); render(); } catch (err) { toast(err.message); }
+  };
   m.onclick = e => { if (e.target === m) m.remove(); };
   m.querySelector('input,select')?.focus();
   m.querySelector('form').onsubmit = async e => {
     e.preventDefault();
-    const btn = e.target.querySelector('button:not(.ghost)'); btn.disabled = true;
+    const btn = e.target.querySelector('.modal-actions button:last-child'); btn.disabled = true;
     const v = Object.fromEntries(new FormData(e.target));
     fields.forEach(f => { if (f.t === 'number') v[f.n] = Number(v[f.n]); });
     try { await save(v); m.remove(); toast('Saved'); render(); } catch (err) { toast(err.message); btn.disabled = false; }
@@ -99,8 +104,8 @@ const saleForm = (d, v = {}) => {
     const b = d.bags.find(y => y.id === x.bagId), rate = x.rate > 0 ? x.rate : (b && b.rate);
     if (!(rate > 0)) throw Error('Enter a price, or set a default price for this bag.');
     if (r2(x.paid) > r2(x.qty * rate)) throw Error('Paid amount is more than the sale total.');
-    await Store.sell({ customerId: x.customerId, bagId: x.bagId, qty: x.qty, rate });
-    if (x.paid > 0) await Store.pay({ party: 'customer', partyId: x.customerId, amount: x.paid, note: 'Paid at sale' });
+    const sale = await Store.sell({ customerId: x.customerId, bagId: x.bagId, qty: x.qty, rate });
+    if (x.paid > 0) await Store.pay({ party: 'customer', partyId: x.customerId, amount: x.paid, note: 'Paid at sale', saleId: sale.id });
   }, v);
 };
 const buyForm = (d, v = {}) => {
@@ -113,14 +118,15 @@ const buyForm = (d, v = {}) => {
     { n: 'supplierId', l: 'Buy from (supplier)', t: 'select', o: [['', 'Anrage (default)'], ...opts(d.suppliers.filter(s => !isDefault(s)))] },
     { n: 'bagId', l: 'Bag type', t: 'select', o: bagOpts(d) },
     { n: 'qty', l: 'Quantity (bags)', t: 'number', r: 1 },
-    { n: 'rate', l: 'Buying price per bag (₹)', t: 'number', r: 1 },
+    { n: 'rate', l: 'Buying price per bag (₹). Empty uses the default price' + (bag && bag.buyRate ? ` (₹${bag.buyRate})` : ''), t: 'number' },
     { n: 'paid', l: 'Paid now (₹). Empty means pay later', t: 'number' }
   ], async x => {
-    if (!(x.rate > 0)) throw Error('Enter the buying price.');
-    if (r2(x.paid) > r2(x.qty * x.rate)) throw Error('Paid amount is more than the purchase total.');
+    const b = d.bags.find(y => y.id === x.bagId), rate = x.rate > 0 ? x.rate : (b && b.buyRate);
+    if (!(rate > 0)) throw Error('Enter a price, or set a default buying price for this bag.');
+    if (r2(x.paid) > r2(x.qty * rate)) throw Error('Paid amount is more than the purchase total.');
     const sid = x.supplierId || (await Store.ensureByName('suppliers', 'Anrage')).id;
-    await Store.buy({ supplierId: sid, bagId: x.bagId, qty: x.qty, rate: x.rate });
-    if (x.paid > 0) await Store.pay({ party: 'supplier', partyId: sid, amount: x.paid, note: 'Paid at purchase' });
+    const buy = await Store.buy({ supplierId: sid, bagId: x.bagId, qty: x.qty, rate });
+    if (x.paid > 0) await Store.pay({ party: 'supplier', partyId: sid, amount: x.paid, note: 'Paid at purchase', purchaseId: buy.id });
   }, vv);
 };
 const payForm = (d, v) => {
@@ -147,12 +153,13 @@ const editItem = (k, d) => {
   const tb = { sale: 'sales', purchase: 'purchases', pay: 'payments', customer: 'customers', supplier: 'suppliers', bag: 'bags' }[kind];
   const r = d[tb].find(x => x.id === id);
   if (!r) return toast('Record not found.');
+  const del = () => Store.remove(tb, id);
   const person = [{ n: 'name', l: 'Business name', r: 1 }, { n: 'phone', l: 'Phone' }, { n: 'address', l: 'Address' }];
-  if (kind === 'bag') form('Edit bag type', [{ n: 'name', l: 'Bag type', r: 1 }, { n: 'rate', l: 'Default selling price (₹ per bag)', t: 'number' },
-    { n: 'stock', l: 'Current stock (bags)', t: 'number' }, { n: 'low', l: 'Warn me when stock is at or below', t: 'number' }], v => Store.update(tb, id, v), r);
-  else if (kind === 'customer' || kind === 'supplier') form('Edit ' + kind, person, v => Store.update(tb, id, v), r);
+  if (kind === 'bag') form('Edit bag type', [{ n: 'name', l: 'Bag type', r: 1 }, { n: 'rate', l: 'Default selling price (₹ per bag)', t: 'number' }, { n: 'buyRate', l: 'Default buying price (₹ per bag)', t: 'number' },
+    { n: 'stock', l: 'Current stock (bags)', t: 'number' }, { n: 'low', l: 'Warn me when stock is at or below', t: 'number' }], v => Store.update(tb, id, v), r, del);
+  else if (kind === 'customer' || kind === 'supplier') form('Edit ' + kind, person, v => Store.update(tb, id, v), r, del);
   else if (kind === 'pay') form('Edit payment', [{ n: 'amount', l: 'Amount (₹)', t: 'number', r: 1 }, { n: 'note', l: 'Note (optional)' }],
-    v => { if (!(v.amount > 0)) throw Error('Enter an amount.'); return Store.update(tb, id, v); }, r);
+    v => { if (!(v.amount > 0)) throw Error('Enter an amount.'); return Store.update(tb, id, v); }, r, del);
   else {
     const sale = kind === 'sale';
     form(sale ? 'Edit sale' : 'Edit purchase', [
@@ -160,7 +167,7 @@ const editItem = (k, d) => {
       { n: 'bagId', l: 'Bag type', t: 'select', o: bagOpts(d) },
       { n: 'qty', l: 'Quantity (bags)', t: 'number', r: 1 },
       { n: 'rate', l: 'Price per bag (₹)', t: 'number', r: 1 }
-    ], v => sale ? Store.editSale(id, v) : Store.editPurchase(id, v), r);
+    ], v => sale ? Store.editSale(id, v) : Store.editPurchase(id, v), r, del);
   }
 };
 
@@ -170,10 +177,10 @@ const summary = (c, label, amt) => `<a class="back" href="#">&larr; Back to all<
 const P = {
   async inventory(d) {
     const btn = (k, id, t, c) => `<button class="btn ${c} sm" data-do="${k}:${id}">${t}</button>`;
-    return [table([['Bag type', r => esc(r.name)], ['In stock', r => `<b>${r.stock}</b>`], ['Default price', r => r.rate ? money(r.rate) : '-'],
+    return [table([['Bag type', r => esc(r.name)], ['In stock', r => `<b>${r.stock}</b>`], ['Selling price', r => r.rate ? money(r.rate) : '-'], ['Buying price', r => r.buyRate ? money(r.buyRate) : '-'],
       ['Status', r => r.stock <= r.low ? '<span class="pill low">Low</span>' : '<span class="pill ok">OK</span>'],
       ['', r => btn('sell', r.id, 'Sell', '') + btn('buy', r.id, 'Buy stock', 'ghost') + btn('edit-bag', r.id, 'Edit', 'ghost')]], d.bags, 'No bag types yet. Add your first one.'),
-      [['Add bag type', () => form('New bag type', [{ n: 'name', l: 'Bag type', r: 1 }, { n: 'rate', l: 'Default selling price (₹ per bag)', t: 'number' }, { n: 'stock', l: 'Opening stock (bags)', t: 'number' }, { n: 'low', l: 'Warn me when stock is at or below', t: 'number' }], v => Store.add('bags', v))]],
+      [['Add bag type', () => form('New bag type', [{ n: 'name', l: 'Bag type', r: 1 }, { n: 'rate', l: 'Default selling price (₹ per bag)', t: 'number' }, { n: 'buyRate', l: 'Default buying price (₹ per bag)', t: 'number' }, { n: 'stock', l: 'Opening stock (bags)', t: 'number' }, { n: 'low', l: 'Warn me when stock is at or below', t: 'number' }], v => Store.add('bags', v))]],
       k => {
         const [a, id] = k.split(':');
         if (a === 'sell') saleForm(d, { bagId: id });

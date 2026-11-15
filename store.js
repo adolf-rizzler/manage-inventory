@@ -38,12 +38,45 @@ const Store = (() => {
     const b = read(tb); // re-read: stockMove does not touch this table, but stay safe
     b[i] = { ...n, total: Math.round(n.qty * n.rate * 100) / 100 };
     write(tb, b);
+    // keep the "paid now" payment attached to the same customer/supplier after an edit
+    const link = tb === 'sales' ? ['saleId', n.customerId] : ['purchaseId', n.supplierId];
+    const pays = read('payments'); let moved = false;
+    pays.forEach(p => { if (p[link[0]] === id) { p.partyId = link[1]; moved = true; } });
+    if (moved) write('payments', pays);
+  };
+
+  const count = (tb, f) => read(tb).filter(f).length;
+  // Delete a record safely: stock is put back, linked payments go too, and anything still in use is protected
+  const remove = async (tb, id) => {
+    const a = read(tb), i = a.findIndex(x => x.id === id);
+    if (i < 0) throw Error('Record not found.');
+    const r = a[i];
+    if (tb === 'sales') stockMove(r.bagId, r.qty);
+    else if (tb === 'purchases') {
+      try { stockMove(r.bagId, -r.qty); }
+      catch (e) { throw Error('Cannot delete: some of these bags are already sold, so stock would go below zero.'); }
+    } else if (tb === 'customers') {
+      const n = count('sales', x => x.customerId === id) + count('payments', x => x.party === 'customer' && x.partyId === id);
+      if (n) throw Error(`Cannot delete ${r.name}: ${n} sale/payment record(s) belong to them. Delete those first.`);
+    } else if (tb === 'suppliers') {
+      const n = count('purchases', x => x.supplierId === id) + count('payments', x => x.party === 'supplier' && x.partyId === id);
+      if (n) throw Error(`Cannot delete ${r.name}: ${n} purchase/payment record(s) belong to them. Delete those first.`);
+    } else if (tb === 'bags') {
+      const n = count('sales', x => x.bagId === id) + count('purchases', x => x.bagId === id);
+      if (n) throw Error(`Cannot delete ${r.name}: ${n} sale/purchase record(s) use it. Delete those first.`);
+    }
+    a.splice(i, 1); write(tb, a);
+    if (tb === 'sales' || tb === 'purchases') {
+      const key = tb === 'sales' ? 'saleId' : 'purchaseId';
+      write('payments', read('payments').filter(p => p[key] !== id));
+    }
   };
 
   return {
     editSale: (id, p) => editTx('sales', id, p, -1),
     editPurchase: (id, p) => editTx('purchases', id, p, 1),
     list: async t => read(t),
+    remove,
     ensureByName: async (tb, name) => read(tb).find(r => String(r.name).trim().toLowerCase() === name.toLowerCase()) || add(tb, { name }),
     add,
     update: async (tb, id, patch) => {
