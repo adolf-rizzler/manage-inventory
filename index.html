@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#f7f8f5" />
+  <title>INVENTORY</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ========================================== -->
+  <!-- 1. MOBILE MENU BUTTON & OVERLAY            -->
+  <!-- ========================================== -->
+  <button class="menu-btn" id="menuBtn" aria-label="Open menu" aria-controls="sidebar" aria-expanded="false">
+    <span></span><span></span><span></span>
+  </button>
+
+  <div class="overlay" id="overlay"></div>
+
+
+  <!-- ========================================== -->
+  <!-- 2. MAIN APP CONTAINER                      -->
+  <!-- ========================================== -->
+  <div class="app">
+
+    <!-- SIDEBAR / NAVIGATION DRAWER -->
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+
+      <!-- Close button for mobile drawer -->
+      <button class="sidebar-close" id="sidebarClose" aria-label="Close menu">&times;</button>
+
+      <!-- Brand / Logo Info -->
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m4 7 8-4 8 4-8 4-8-4Z"/><path d="m4 12 8 4 8-4M4 17l8 4 8-4M4 7v10m16-10v10M12 11v10"/>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-name">anrage inventory</div>
+          <div class="brand-sub">Inventory, in order</div>
+        </div>
+      </div>
+
+      <!-- Workspace Selector -->
+      <div class="workspace">
+        <div><small>WORKSPACE</small><strong>ANRAGE</strong></div>
+        <span aria-hidden="true">⌄</span>
+      </div>
+
+      <!-- Sidebar Navigation Menu Buttons -->
+      <nav>
+        <div class="nav-label">Workspace</div>
+
+        <div class="nav-list" id="navigation">
+          <button class="nav-button active" data-section="Overview" aria-current="page">
+            <span class="nav-icon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="8" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="15" width="7" height="6" rx="1.5"/></svg></span>
+            <span class="nav-copy"><span class="nav-title">Overview</span><span class="nav-hint">Your business at a glance</span></span>
+          </button>
+
+          <button class="nav-button" data-section="Sales">
+            <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 3h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 1.9-1.4L22 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span>
+            <span class="nav-copy"><span class="nav-title">Sales</span><span class="nav-hint">Orders &amp; transactions</span></span>
+            <span class="nav-count"></span>
+          </button>
+
+          <button class="nav-button" data-section="Customers">
+            <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.9M16 3.2a4 4 0 0 1 0 7.6"/></svg></span>
+            <span class="nav-copy"><span class="nav-title">Customers</span><span class="nav-hint">People who shop with you</span></span>
+          </button>
+
+          <button class="nav-button" data-section="Supplier">
+            <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6M3 10h18M7 10v3m5-3v3m5-3v3"/></svg></span>
+            <span class="nav-copy"><span class="nav-title">Supplier</span><span class="nav-hint">Partners &amp; purchase orders</span></span>
+          </button>
+
+          <button class="nav-button" data-section="Inventory">
+            <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4M12 11v10"/></svg></span>
+            <span class="nav-copy"><span class="nav-title">Inventory</span><span class="nav-hint">Products &amp; stock levels</span></span>
+            <span class="nav-count"></span>
+          </button>
+
+          <button class="nav-button" data-section="Statistics">
+            <span class="nav-icon"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-5 5"/><path d="M15 9h4v4"/></svg></span>
+            <span class="nav-copy"><span class="nav-title">Statistics</span><span class="nav-hint">Reports &amp; performance</span></span>
+          </button>
+
+          <button class="nav-button" data-section="Record Payment">
+            <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/><path d="M6 15h4"/></svg></span>
+            <span class="nav-copy"><span class="nav-title">Record Payment</span><span class="nav-hint">Log transactions &amp; receipts</span></span>
+          </button>
+        </div>
+      </nav>
+    </aside>
+
+
+    <!-- MAIN CONTENT AREA -->
+    <main>
+      
+      <!-- Top Bar (Breadcrumb, Search, Notifications) -->
+      <header class="topbar">
+        <div class="breadcrumb">Northstar Goods&nbsp; / &nbsp;<b id="breadcrumb-current">Overview</b></div>
+        <div class="top-actions">
+          <label class="search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input type="search" aria-label="Search" placeholder="Search anything..." />
+          </label>
+          <button class="icon-button" id="notifications" aria-label="Notifications">
+            <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg>
+            <span class="notification-dot"></span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Intro Greeting Section -->
+      <section class="intro">
+        <div>
+          <p class="eyebrow">today</p>
+          <h1>Good morning , Sir <span aria-hidden="true">✳</span></h1>
+          <p>Here’s what’s happening with your business today.</p>
+        </div>
+        <div class="date-pill">
+          <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>
+          <span id="today-date"></span>
+        </div>
+      </section>
+
+      <!-- Welcome Banner Section -->
+      <section class="welcome" aria-label="Welcome">
+        <div class="welcome-copy">
+          <div class="welcome-kicker">Your daily overview</div>
+          <h2>A little order goes a long way.</h2>
+          <p>Keep your stock moving, your customers happy, and your business growing — all from one place.</p>
+        </div>
+        <div class="welcome-art" aria-hidden="true">
+          <svg viewBox="0 0 48 48"><path d="m8 17 16-8 16 8-16 8-16-8Z"/><path d="m8 25 16 8 16-8M8 33l16 8 16-8M8 17v16m32-16v16m-16-8v16"/></svg>
+        </div>
+      </section>
+
+      <!-- Quick Access Cards Grid -->
+      <section aria-labelledby="quick-links-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="quick-links-title">Quick access</h2>
+            <p>Jump right into the work that matters.</p>
+          </div>
+          <a class="view-all" href="#navigation">View all sections&nbsp; →</a>
+        </div>
+        
+        <div class="nav-cards">
+          <button class="nav-card" data-section="Sales">
+            <span class="card-arrow">↗</span>
+            <span class="card-icon sales"><svg viewBox="0 0 24 24"><path d="M3 3h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 1.9-1.4L22 8H6"/><circle cx="10" cy="20" r="1"/><circle cx="18" cy="20" r="1"/></svg></span>
+            <span class="card-title">Sales</span>
+            <span class="card-sub">Track orders and payments</span>
+          </button>
+
+          <button class="nav-card" data-section="Customers">
+            <span class="card-arrow">↗</span>
+            <span class="card-icon customers"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.9M16 3.2a4 4 0 0 1 0 7.6"/></svg></span>
+            <span class="card-title">Customers</span>
+            <span class="card-sub">Manage your customer list</span>
+          </button>
+
+          <button class="nav-card" data-section="Supplier">
+            <span class="card-arrow">↗</span>
+            <span class="card-icon supplier"><svg viewBox="0 0 24 24"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6M3 10h18M7 10v3m5-3v3m5-3v3"/></svg></span>
+            <span class="card-title">Supplier</span>
+            <span class="card-sub">Keep supplier details close</span>
+          </button>
+
+          <button class="nav-card" data-section="Inventory">
+            <span class="card-arrow">↗</span>
+            <span class="card-icon inventory"><svg viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4M12 11v10"/></svg></span>
+            <span class="card-title">Inventory</span>
+            <span class="card-sub">See products and stock levels</span>
+          </button>
+
+          <button class="nav-card" data-section="Statistics">
+            <span class="card-arrow">↗</span>
+            <span class="card-icon statistics"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-5 5"/><path d="M15 9h4v4"/></svg></span>
+            <span class="card-title">Statistics</span>
+            <span class="card-sub">Understand how you’re doing</span>
+          </button>
+
+          <button class="nav-card" data-section="Add Payment">
+            <span class="card-arrow">↗</span>
+            <span class="card-icon add-payment"><svg viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span>
+            <span class="card-title">Add Payment</span>
+            <span class="card-sub">hisaab sambalo</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Bottom Grid (Recent Activity Panel Only) -->
+      <div class="bottom-grid">
+        
+        <!-- Recent Activity Panel -->
+        <section class="panel" aria-labelledby="activity-title" style="grid-column: 1 / -1;">
+          <div class="panel-top">
+            <h3 id="activity-title">Recent activity</h3>
+            <span>Today&nbsp; · &nbsp;Updated just now</span>
+          </div>
+          <div class="activity">
+            <div class="activity-row">
+              <span class="activity-icon"><svg viewBox="0 0 24 24"><path d="M3 3h2l2.4 11.2a2 2 0 0 0 2 1.6h8.8a2 2 0 0 0 1.9-1.4L22 8H6"/></svg></span>
+              <span class="activity-desc"><b>New sale</b> · </span>
+              <span class="activity-time"></span>
+            </div>
+            <div class="activity-row">
+              <span class="activity-icon"><svg viewBox="0 0 24 24"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 12l9 4 9-4M3 17l9 4 9-4"/></svg></span>
+              <span class="activity-desc"><b>Stock updated</b> · </span>
+              <span class="activity-time"></span>
+            </div>
+            <div class="activity-row">
+              <span class="activity-icon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/></svg></span>
+              <span class="activity-desc"><b>New customer</b> · </span>
+              <span class="activity-time"></span>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Notification Pop-up Element -->
+  <div class="toast" role="status" aria-live="polite" id="toast"></div>
+
+  <!-- Link to JavaScript File -->
+  <script src="script.js" defer></script>
+</body>
+</html>
