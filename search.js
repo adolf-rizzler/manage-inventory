@@ -1,61 +1,237 @@
-/* Global search: type in the top-bar search box to find any customer, supplier, bag type,
-   sale, purchase or payment. Click a result to jump to it. Press "/" anywhere to start typing. */
+// Search customers, suppliers, inventory, sales, purchases and payments
+
 (() => {
+
+  // Get the search box
   const input = document.querySelector('.search input');
+
+  // Stop if search box or Store is missing
   if (!input || typeof Store === 'undefined') return;
+
   input.autocomplete = 'off';
 
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const money = n => '₹' + Number(n || 0).toLocaleString('en-IN');
-  const day = d => new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
-  const low = s => String(s ?? '').toLowerCase();
 
+  // Helper functions
+
+  // Make text safe before displaying it in HTML
+  const esc = text =>
+    String(text ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[char]));
+
+  // Format money
+  const money = amount =>
+    '₹' + Number(amount || 0).toLocaleString('en-IN');
+
+  // Format date
+  const day = date =>
+    new Date(date).toLocaleDateString('en-IN');
+
+  // Convert text to lowercase
+  const low = text => String(text ?? '').toLowerCase();
+
+
+  // Create a box to show search results
   const box = document.createElement('div');
+
   box.className = 'search-results';
   box.hidden = true;
-  (document.querySelector('.top-actions') || input.parentElement).appendChild(box);
 
-  let seq = 0; // ignore out-of-date searches while typing fast
-  async function run() {
-    const q = low(input.value).trim(), mine = ++seq;
-    if (!q) { box.hidden = true; return; }
-    const [bags, customers, suppliers, sales, purchases, payments] =
-      await Promise.all(['bags', 'customers', 'suppliers', 'sales', 'purchases', 'payments'].map(t => Store.list(t)));
-    if (mine !== seq) return;
+  document.querySelector('.top-actions').appendChild(box);
 
-    const nm = (a, id) => (a.find(x => x.id === id) || {}).name || 'Removed';
-    const has = (...f) => f.some(x => low(x).includes(q));
-    const person = (list, page) => list.filter(x => has(x.name, x.phone, x.address))
-      .map(x => [x.name, [x.phone, x.address].filter(Boolean).join(' · '), page + '#' + x.id]);
 
+  // Search function
+  async function search() {
+
+    const query = low(input.value).trim();
+
+    // Hide results if search is empty
+    if (!query) {
+      box.hidden = true;
+      return;
+    }
+
+
+    // Get all data from Store
+    const bags = await Store.list('bags');
+    const customers = await Store.list('customers');
+    const suppliers = await Store.list('suppliers');
+    const sales = await Store.list('sales');
+    const purchases = await Store.list('purchases');
+    const payments = await Store.list('payments');
+
+
+    // Find a person's name using their ID
+    function getName(list, id) {
+      const person = list.find(item => item.id === id);
+      return person ? person.name : 'Removed';
+    }
+
+
+    // Check whether text matches the search
+    function matches(...values) {
+      return values.some(value =>
+        low(value).includes(query)
+      );
+    }
+
+
+    // Search customers
+    const customerResults = customers
+      .filter(c => matches(c.name, c.phone, c.address))
+      .map(c => [
+        c.name,
+        c.phone || '',
+        'customers.html#' + c.id
+      ]);
+
+
+    // Search suppliers
+    const supplierResults = suppliers
+      .filter(s => matches(s.name, s.phone, s.address))
+      .map(s => [
+        s.name,
+        s.phone || '',
+        'suppliers.html#' + s.id
+      ]);
+
+
+    // Search inventory
+    const bagResults = bags
+      .filter(b => matches(b.name))
+      .map(b => [
+        b.name,
+        b.stock + ' in stock',
+        'inventory.html'
+      ]);
+
+
+    // Search sales
+    const saleResults = sales
+      .filter(s =>
+        matches(
+          getName(customers, s.customerId),
+          getName(bags, s.bagId),
+          s.total
+        )
+      )
+      .map(s => [
+        getName(customers, s.customerId),
+        money(s.total),
+        'customers.html#' + s.customerId
+      ]);
+
+
+    // Search purchases
+    const purchaseResults = purchases
+      .filter(p =>
+        matches(
+          getName(suppliers, p.supplierId),
+          getName(bags, p.bagId),
+          p.total
+        )
+      )
+      .map(p => [
+        getName(suppliers, p.supplierId),
+        money(p.total),
+        'suppliers.html#' + p.supplierId
+      ]);
+
+
+    // Search payments
+    const paymentResults = payments
+      .filter(p =>
+        matches(p.note, p.amount)
+      )
+      .map(p => [
+        'Payment',
+        money(p.amount),
+        'hisaab.html'
+      ]);
+
+
+    // Combine all results
     const groups = [
-      ['Customers', person(customers, 'customers.html')],
-      ['Suppliers', person(suppliers, 'suppliers.html')],
-      ['Inventory', bags.filter(b => has(b.name)).map(b => [b.name, b.stock + ' in stock' + (b.rate ? ' · ' + money(b.rate) : ''), 'inventory.html'])],
-      ['Sales', [...sales].reverse().filter(s => has(nm(customers, s.customerId), nm(bags, s.bagId), s.total, day(s.at)))
-        .map(s => [nm(customers, s.customerId) + ': ' + s.qty + ' × ' + nm(bags, s.bagId), money(s.total) + ' · ' + day(s.at), 'customers.html#' + s.customerId])],
-      ['Purchases', [...purchases].reverse().filter(p => has(nm(suppliers, p.supplierId), nm(bags, p.bagId), p.total, day(p.at)))
-        .map(p => [nm(suppliers, p.supplierId) + ': ' + p.qty + ' × ' + nm(bags, p.bagId), money(p.total) + ' · ' + day(p.at), 'suppliers.html#' + p.supplierId])],
-      ['Payments', [...payments].reverse().filter(p => has(nm(p.party === 'customer' ? customers : suppliers, p.partyId), p.note, p.amount))
-        .map(p => [(p.party === 'customer' ? 'Received from ' : 'Paid to ') + nm(p.party === 'customer' ? customers : suppliers, p.partyId),
-          money(p.amount) + (p.note ? ' · ' + p.note : '') + ' · ' + day(p.at), (p.party === 'customer' ? 'customers.html#' : 'suppliers.html#') + p.partyId])]
-    ].filter(g => g[1].length);
+      ['Customers', customerResults],
+      ['Suppliers', supplierResults],
+      ['Inventory', bagResults],
+      ['Sales', saleResults],
+      ['Purchases', purchaseResults],
+      ['Payments', paymentResults]
+    ];
 
-    box.innerHTML = groups.length
-      ? groups.map(([g, rows]) => `<div class="sr-group">${g}</div>` + rows.slice(0, 5).map(r => `<a href="${r[2]}"><b>${esc(r[0])}</b><span>${esc(r[1])}</span></a>`).join('')).join('')
-      : `<p class="sr-empty">Nothing found for “${esc(input.value.trim())}”.</p>`;
+
+    // Display matching results
+    let html = '';
+
+    groups.forEach(([title, results]) => {
+
+      if (results.length === 0) return;
+
+      html += `<div class="sr-group">${title}</div>`;
+
+      results.slice(0, 5).forEach(result => {
+
+        html += `
+          <a href="${result[2]}">
+            <b>${esc(result[0])}</b>
+            <span>${esc(result[1])}</span>
+          </a>
+        `;
+
+      });
+
+    });
+
+
+    // Show message if nothing matches
+    box.innerHTML = html || '<p>Nothing found!</p>';
+
     box.hidden = false;
+
   }
 
-  input.addEventListener('input', run);
-  input.addEventListener('focus', run);
+
+  // Search whenever the user types
+  input.addEventListener('input', search);
+
+
+  // Close results when Escape is pressed
   input.addEventListener('keydown', e => {
-    if (e.key === 'Escape') { box.hidden = true; input.blur(); }
-    if (e.key === 'Enter') { const a = box.querySelector('a'); if (a) { e.preventDefault(); box.hidden = true; location.href = a.href; } }
+
+    if (e.key === 'Escape') {
+      box.hidden = true;
+      input.blur();
+    }
+
   });
-  box.addEventListener('click', e => { if (e.target.closest('a')) box.hidden = true; });
-  document.addEventListener('click', e => { if (!box.contains(e.target) && !input.closest('.search').contains(e.target)) box.hidden = true; });
+
+
+  // Hide results when clicking outside
+  document.addEventListener('click', e => {
+
+    if (!box.contains(e.target) && !input.contains(e.target)) {
+      box.hidden = true;
+    }
+
+  });
+
+
+  // Press "/" to open search
   document.addEventListener('keydown', e => {
-    if (e.key === '/' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) { e.preventDefault(); input.focus(); }
+
+    if (
+      e.key === '/' &&
+      !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)
+    ) {
+      e.preventDefault();
+      input.focus();
+    }
+
   });
+
 })();
